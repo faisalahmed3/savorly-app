@@ -99,7 +99,21 @@ async function run() {
       }
     });
 
-    
+    // Get a recipe by ID
+    app.get('/recipes/:id', async (req, res) => {
+      const recipeId = req.params.id;
+      try {
+        const recipe = await recipesCollection.findOne({ _id: new ObjectId(recipeId) });
+        if (recipe) {
+          res.status(200).json(recipe);
+        } else {
+          res.status(404).json({ success: false, message: 'Recipe not found' });
+        }
+      } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to retrieve recipe', error: err.message });
+      }
+    });
+
     
 
   } finally {
