@@ -114,6 +114,33 @@ async function run() {
       }
     });
 
+    // Update a recipe (only by owner)
+    app.put('/recipes/:id', async (req, res) => {
+      const recipeId = req.params.id;
+      const updatedData = req.body;
+      const userEmail = req.query.email;
+
+      try {
+        const recipe = await recipesCollection.findOne({ _id: new ObjectId(recipeId) });
+        if (!recipe) {
+          return res.status(404).json({ success: false, message: 'Recipe not found' });
+        }
+
+        if (recipe.userEmail !== userEmail) {
+          return res.status(403).json({ success: false, message: 'Unauthorized to update this recipe' });
+        }
+
+        const result = await recipesCollection.updateOne(
+          { _id: new ObjectId(recipeId) },
+          { $set: updatedData }
+        );
+
+        res.json({ success: true, message: 'Recipe updated successfully', result });
+      } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to update recipe', error: err.message });
+      }
+    });
+
     
 
   } finally {
