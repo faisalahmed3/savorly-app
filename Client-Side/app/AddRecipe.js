@@ -3,15 +3,71 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, 
   ScrollView, Alert, KeyboardAvoidingView, Platform
 } from 'react-native';
-
+import { useRouter } from 'expo-router';
 import CheckBox from 'expo-checkbox';
+import { getAuth } from 'firebase/auth';
 
+export default function AddRecipe() {
+  const router = useRouter();
+  const auth = getAuth();
 
+  const [form, setForm] = useState({
+    image: '',
+    title: '',
+    ingredients: '',
+    instructions: '',
+    cuisine: '',
+    prepTime: '',
+    video: '',
+  });
+  const [categories, setCategories] = useState([]);
+  const categoryOptions = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Vegan'];
 
-  
+  const handleCheckboxChange = (category) => {
+    setCategories((prev) =>
+      prev.includes(category)
+        ? prev.filter((c) => c !== category)
+        : [...prev, category]
+    );
+  };
 
   const handleAddRecipe = async () => {
-   
+    const user = auth.currentUser;
+    if (!user?.email) {
+      Alert.alert('Error', 'Please login first.');
+      return;
+    }
+
+    if (!form.image || !form.title || !form.ingredients || !form.instructions || !form.cuisine || !form.prepTime) {
+      Alert.alert('Error', 'Please fill all required fields.');
+      return;
+    }
+
+    const newRecipe = {
+      ...form,
+      prepTime: parseInt(form.prepTime),
+      categories,
+      likeCount: 0,
+      userEmail: user.email,
+    };
+
+    try {
+      const res = await fetch('https://savorly-sever.vercel.app/recipes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newRecipe),
+      });
+
+      const data = await res.json();
+      if (data.insertedId) {
+        Alert.alert('Success', 'Recipe added successfully!');
+        router.push('/MyRecipes');
+      } else {
+        Alert.alert('Error', 'Failed to add recipe');
+      }
+    } catch (err) {
+      Alert.alert('Server Error', err.message || 'Something went wrong!');
+    }
   };
 
   return (
@@ -150,4 +206,3 @@ const styles = StyleSheet.create({
   },
   addButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
 });
-ssss
