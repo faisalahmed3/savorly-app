@@ -8,8 +8,47 @@ import {
   TouchableOpacity,
   Animated,
 } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useState, useRef } from 'react';
 import { WebView } from 'react-native-webview';
+import api from '@services/api';
+
+export default function RecipeDetails() {
+  const { id } = useLocalSearchParams();
+  const router = useRouter();
+
+  const [recipe, setRecipe] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+
+  // Animated collapsibles
+  const ingredientsHeight = useRef(new Animated.Value(1)).current;
+  const instructionsHeight = useRef(new Animated.Value(1)).current;
+  const [showIngredients, setShowIngredients] = useState(true);
+  const [showInstructions, setShowInstructions] = useState(true);
+
+  // Fetch recipe
+  const fetchRecipe = async () => {
+    try {
+      const response = await api.get(`/recipes/${id}`);
+      console.log('Recipe Data:', response.data); // Debugging
+      setRecipe(response.data);
+      setLikeCount(response.data.likeCount || 0);
+    } catch (err) {
+      setError('Failed to load recipe.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecipe();
+  }, [id]);
+
   const toggleAnimatedSection = (section, setter, animatedValue) => {
     const newState = !section;
     setter(newState);
@@ -21,6 +60,27 @@ import { WebView } from 'react-native-webview';
     }).start();
   };
 
+  const handleLike = async () => {
+    if (liked) return; // only like once per session
+
+    // Optimistic UI
+    setLiked(true);
+    setLikeCount((prev) => prev + 1);
+
+    try {
+      await api.patch(`/recipes/${id}/like`);
+
+      // Refetch recipe to get real likeCount from DB
+      const updatedRecipe = await api.get(`/recipes/${id}`);
+      setLikeCount(updatedRecipe.data.likeCount || 0);
+    } catch (err) {
+      console.error('Failed to update like:', err.message);
+      // revert UI if failed
+      setLiked(false);
+      setLikeCount((prev) => prev - 1);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -28,6 +88,32 @@ import { WebView } from 'react-native-webview';
       </View>
     );
   }
+
+  if (error || !recipe) {
+    return (
+      <View style={styles.centered}>
+        <Text style={{ color: 'red' }}>{error || 'Recipe not found'}</Text>
+      </View>
+    );
+  }
+
+  const ingredientsMaxHeight = ingredientsHeight.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 500],
+  });
+  const instructionsMaxHeight = instructionsHeight.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 800],
+  });
+
+  // Convert YouTube short URL to embed URL
+  const getEmbedUrl = (url) => {
+    if (!url) return null;
+    return url.includes('youtu.be')
+      ? url.replace('youtu.be/', 'www.youtube.com/embed/')
+      : url.replace('watch?v=', 'embed/');
+  };
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#fff' }}>
       {/* 🔹 Custom Header */}

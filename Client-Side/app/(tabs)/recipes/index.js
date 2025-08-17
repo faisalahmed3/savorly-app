@@ -8,7 +8,91 @@ import {
   ActivityIndicator,
   TextInput,
 } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useState, useEffect, useCallback } from 'react';
+import api from '@services/api';
+
+export default function AllRecipes() {
+  const router = useRouter();
+  const [recipes, setRecipes] = useState([]);
+  const [filteredRecipes, setFilteredRecipes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Fetch recipes function
+  const fetchRecipes = async () => {
+    try {
+      const response = await api.get('/recipes'); // Your backend endpoint
+      setRecipes(response.data);
+      setFilteredRecipes(response.data);
+    } catch (err) {
+      console.error('Failed to fetch recipes:', err.response?.data || err.message);
+      setError('Failed to load recipes.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial fetch
+  useEffect(() => {
+    fetchRecipes();
+  }, []);
+
+  // Refetch recipes on focus (real-time like count)
+  useFocusEffect(
+    useCallback(() => {
+      fetchRecipes();
+    }, [])
+  );
+
+  // Helper to get correct like count
+  const getLikeCount = (item) => {
+    if (item.likeCount !== undefined) return item.likeCount;
+    if (item.likes !== undefined) return item.likes;
+    if (item.likedUsers) return item.likedUsers.length;
+    return 0;
+  };
+
+  // Search filtering
+  const handleSearch = (text) => {
+    setSearchQuery(text);
+    if (!text) {
+      setFilteredRecipes(recipes);
+    } else {
+      const filtered = recipes.filter((recipe) =>
+        recipe.title.toLowerCase().includes(text.toLowerCase())
+      );
+      setFilteredRecipes(filtered);
+    }
+  };
+
+  // Render Recipe Card
+  const renderRecipeCard = ({ item }) => (
+    <TouchableOpacity
+      style={styles.recipeCard}
+      onPress={() => router.push(`/recipes/${item._id}`)}
+      activeOpacity={0.85}
+    >
+      <ImageBackground
+        source={{ uri: item.image }}
+        style={styles.recipeImage}
+        imageStyle={{ borderRadius: 16 }}
+      >
+        <View style={styles.gradientOverlay} />
+
+        {/* Likes icon & count */}
+        <View style={styles.likeContainer}>
+          <Ionicons name="heart" size={16} color="#ff4d4d" />
+          <Text style={styles.likeText}>{getLikeCount(item)}</Text>
+        </View>
+
+        <Text style={styles.recipeTitle}>{item.title}</Text>
+      </ImageBackground>
+    </TouchableOpacity>
+  );
+
   // Loading state
   if (loading) {
     return (
@@ -17,6 +101,16 @@ import { Ionicons } from '@expo/vector-icons';
       </View>
     );
   }
+
+  // Error state
+  if (error) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: 'red' }}>{error}</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: '#f8f8f8' }}>
       {/* Custom Colored Header */}

@@ -10,8 +10,8 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-
-
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import app from '@services/firebase'; // your firebase.js
 
 export default function Register() {
   const router = useRouter();
@@ -25,7 +25,32 @@ export default function Register() {
   const [error, setError] = useState('');
 
   const handleRegister = async () => {
-    
+    if (!name || !email || !password) {
+      Alert.alert('Error', 'Please fill all fields');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      const user = result.user;
+
+      // ✅ Update display name and photo like web
+      await updateProfile(user, {
+        displayName: name,
+        photoURL: photo,
+      });
+
+      Alert.alert('Success', 'Account created successfully!');
+      router.replace('/profile'); // ✅ use replace to prevent going back to register
+    } catch (err) {
+      console.error(err.message);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
