@@ -30,6 +30,19 @@ export default function Home() {
     require('@assets/images/tikka.png'),
   ];
 
+  useEffect(() => {
+    async function fetchTopRecipes() {
+      try {
+        const response = await api.get('/recipes/top'); // Your backend endpoint
+        setTopRecipes(response.data);
+      } catch (err) {
+        setError('Failed to load recipes.');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchTopRecipes();
+  }, []);
 
   // Get correct like count
   const getLikeCount = (item) => {
@@ -38,6 +51,31 @@ export default function Home() {
     if (item.likedUsers) return item.likedUsers.length;
     return 0;
   };
+
+  // Render single recipe card
+  const renderRecipeCard = ({ item }) => (
+    <TouchableOpacity
+      style={styles.recipeCardGrid}
+      onPress={() => router.push(`/recipes/${item._id}`)}
+      activeOpacity={0.85}
+    >
+      <ImageBackground
+        source={{ uri: item.image }}
+        style={styles.recipeImageGrid}
+        imageStyle={{ borderRadius: 16 }}
+      >
+        <View style={styles.gradientOverlay} />
+
+        {/* Likes icon & count */}
+        <View style={styles.likeContainer}>
+          <Ionicons name="heart" size={16} color="#ff4d4d" />
+          <Text style={styles.likeText}>{getLikeCount(item)}</Text>
+        </View>
+
+        <Text style={styles.recipeTitleGrid}>{item.title}</Text>
+      </ImageBackground>
+    </TouchableOpacity>
+  );
 
   // Header: Banner + Welcome + Section Title
   const ListHeader = () => (
